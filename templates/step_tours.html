@@ -4,11 +4,11 @@
 <h2>Tours</h2>
 {% if error %}<div class="error">{{ error }}</div>{% endif %}
 <form method="POST">
-  {% for d in range(1, days + 1) %}
+  {% for d, tours in tours_by_day.items() %}
   <label>Day {{ d }}</label>
   <select name="tour_{{ d }}" required>
     <option value="">— Select tour —</option>
-    {% for t in tours_by_day[d] %}
+    {% for t in tours %}
     <option value="{{ t }}">{{ t }}</option>
     {% endfor %}
   </select>

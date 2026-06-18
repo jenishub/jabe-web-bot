@@ -8,9 +8,9 @@
   <div class="location-block">
     <h3>{{ loc }} — {{ nights_split[loc] }} night(s)</h3>
     <div class="check-group">
-      {% for i, h in enumerate(hotels) %}
+      {% for h in hotels %}
       <label>
-        <input type="checkbox" name="hotel_{{ loc }}" value="{{ i }}">
+        <input type="checkbox" name="hotel_{{ loc }}" value="{{ loop.index0 }}">
         {{ h.name }} ({{ h.payment }})
       </label>
       {% endfor %}

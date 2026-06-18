@@ -6,9 +6,9 @@
 {% if error %}<div class="error">{{ error }}</div>{% endif %}
 <form method="POST">
   <div class="check-group">
-    {% for i, label in enumerate(room_labels) %}
+    {% for label in room_labels %}
     <label>
-      <input type="checkbox" name="rooms" value="{{ i }}">
+      <input type="checkbox" name="rooms" value="{{ loop.index0 }}">
       {{ label }}
     </label>
     {% endfor %}
