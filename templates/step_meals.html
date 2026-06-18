@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="step-indicator">Step 9 of 10</div>
+<h2>Meals</h2>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="POST" id="mealsForm">
+  <label>Are meals required?</label>
+  <div class="radio-group">
+    <label><input type="radio" name="needs_meals" value="yes" id="meals_yes" required> ✅ Yes</label>
+    <label><input type="radio" name="needs_meals" value="no" id="meals_no"> ❌ No</label>
+  </div>
+
+  <div id="meals_detail" style="display:none">
+    <hr class="sep">
+    <label>Lunches</label>
+    <input type="number" name="lunches" min="0" value="0">
+    <label>Dinners</label>
+    <input type="number" name="dinners" min="0" value="0">
+    <label>Gala dinners</label>
+    <input type="number" name="galas" min="0" value="0" id="gala_count">
+
+    <div id="gala_extras" style="display:none">
+      <hr class="sep">
+      <label>Alcohol package</label>
+      <div class="radio-group">
+        <label><input type="radio" name="alcohol" value="none" checked> None</label>
+        <label><input type="radio" name="alcohol" value="local"> Local (vodka) — {{ "{:,}".format(meals.alcohol_local) }} KZT/pax</label>
+        <label><input type="radio" name="alcohol" value="premium"> Premium (red label, wines) — {{ "{:,}".format(meals.alcohol_premium) }} KZT/pax</label>
+      </div>
+      <label>DJ</label>
+      <div class="radio-group">
+        <label><input type="radio" name="dj" value="none" checked> No DJ</label>
+        <label><input type="radio" name="dj" value="gala"> DJ Gala — {{ "{:,}".format(meals.dj_gala) }} KZT</label>
+        <label><input type="radio" name="dj" value="conference"> DJ Gala + Conference — {{ "{:,}".format(meals.dj_gala_conference) }} KZT</label>
+      </div>
+      <label>Dancers</label>
+      <div class="radio-group">
+        <label><input type="radio" name="dancers" value="no" checked> No dancers</label>
+        <label><input type="radio" name="dancers" value="yes"> 2 dancers — {{ "{:,}".format(meals.dancers) }} KZT</label>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn" type="submit">Next →</button>
+</form>
+<script>
+  function toggle() {
+    const yes = document.getElementById('meals_yes').checked;
+    document.getElementById('meals_detail').style.display = yes ? 'block' : 'none';
+  }
+  document.getElementById('meals_yes').addEventListener('change', toggle);
+  document.getElementById('meals_no').addEventListener('change', toggle);
+  document.getElementById('gala_count').addEventListener('input', function() {
+    document.getElementById('gala_extras').style.display = this.value > 0 ? 'block' : 'none';
+  });
+</script>
+{% endblock %}

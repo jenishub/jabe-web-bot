@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="step-indicator">Step 8 of 10</div>
+<h2>Vehicle</h2>
+<p class="hint" style="margin-bottom:16px">Showing vehicles that fit <strong>{{ seat_count }} passenger(s)</strong>.</p>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="POST">
+  <div class="radio-group">
+    {% for i, v in vehicles %}
+    <label>
+      <input type="radio" name="vehicle" value="{{ i }}" required>
+      {{ v.name }} ({{ v.capacity }})
+    </label>
+    {% endfor %}
+  </div>
+  <button class="btn" type="submit">Next →</button>
+</form>
+{% endblock %}

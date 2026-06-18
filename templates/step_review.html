@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>📋 Review Before Generating</h2>
+
+<div class="review-row"><span class="rk">Exchange rate</span><span>{{ calc.exchange_rate }} KZT/USD</span></div>
+<div class="review-row">
+  <span class="rk">Adults</span>
+  <span>{{ calc.adult_count }}
+    {% if cc.adult %} <em style="color:#888">(incl. {{ cc.adult }} child(ren) 13+ as adults)</em>{% endif %}
+  </span>
+</div>
+{% if paying %}
+<div class="review-row"><span class="rk">Paying children</span><span>
+  {% if cc.half_both %}5-10 y.o.: {{ cc.half_both }} &nbsp;{% endif %}
+  {% if cc.half_ticket %}11-12 y.o.: {{ cc.half_ticket }}{% endif %}
+</span></div>
+{% endif %}
+{% if cc.free %}
+<div class="review-row"><span class="rk">Infants (free)</span><span>{{ cc.free }}</span></div>
+{% endif %}
+<div class="review-row"><span class="rk">Seats (5+ y.o.)</span><span>{{ calc.seat_count }}</span></div>
+<div class="review-row"><span class="rk">Dates</span><span>{{ calc.dates_text }} ({{ calc.nights }}n / {{ calc.days }}d)</span></div>
+
+{% if mode == "include" %}
+  {% for h in hotel_summary %}
+  <div class="review-row"><span class="rk">Hotel</span><span>{{ h }}</span></div>
+  {% endfor %}
+  <div class="review-row"><span class="rk">Room types</span><span>{{ rooms | join(", ") }}</span></div>
+  <div class="review-row"><span class="rk">Early check-in</span><span>{{ "Yes" if calc.early_checkin else "No" }}</span></div>
+{% elif mode == "high_season" %}
+  <div class="review-row"><span class="rk">Hotel</span><span>⚠️ September — confirm with sales@jabe.kz</span></div>
+{% else %}
+  <div class="review-row"><span class="rk">Hotel</span><span>Land only</span></div>
+{% endif %}
+
+<div class="review-row"><span class="rk">Vehicle</span><span>{{ veh }}</span></div>
+{% for t in tours %}
+<div class="review-row"><span class="rk">{{ t.split(":")[0] }}</span><span>{{ t.split(":")[1] }}</span></div>
+{% endfor %}
+<div class="review-row"><span class="rk">Meals</span><span>
+  {{ calc.lunches }} lunch, {{ calc.dinners }} dinner, {{ calc.galas }} gala
+</span></div>
+{% if calc.galas > 0 %}
+<div class="review-row"><span class="rk">Gala extras</span><span>
+  Alcohol: {{ calc.alcohol }}, DJ: {{ calc.dj }}, Dancers: {{ "yes" if calc.dancers else "no" }}
+</span></div>
+{% endif %}
+<div class="review-row"><span class="rk">Markup</span><span>{{ calc.markup }} USD per paying pax</span></div>
+
+<form method="POST">
+  <div class="actions">
+    <button class="btn" name="action" value="generate">✅ Generate PDF</button>
+    <button class="btn btn-secondary" name="action" value="edit_rate">✏️ Change Rate</button>
+    <button class="btn btn-secondary" name="action" value="edit_markup">✏️ Change Markup</button>
+    <button class="btn btn-danger" name="action" value="restart">🔄 Start Over</button>
+  </div>
+</form>
+{% endblock %}

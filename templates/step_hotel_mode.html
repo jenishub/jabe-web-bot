@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="step-indicator">Step 4 of 10</div>
+<h2>Accommodation</h2>
+<form method="POST">
+  <div class="radio-group">
+    <label><input type="radio" name="mode" value="include" required> 🏨 Include hotel in the quote</label>
+    <label><input type="radio" name="mode" value="land_only"> 🚗 Land only — guest booked own accommodation</label>
+  </div>
+  <button class="btn" type="submit">Next →</button>
+</form>
+{% endblock %}

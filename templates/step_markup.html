@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="step-indicator">Step 10 of 10</div>
+<h2>Markup</h2>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="POST">
+  <label>Markup amount (USD, flat per paying pax)</label>
+  <input type="text" name="markup" placeholder="e.g. 50" autofocus required>
+  <button class="btn" type="submit">Review →</button>
+</form>
+{% endblock %}

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JABE Concierge — Calculator</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         background: #f4f4f4; color: #222; min-height: 100vh; }
+  .topbar { background: #1a1a2e; color: #fff; padding: 14px 24px;
+             display: flex; justify-content: space-between; align-items: center; }
+  .topbar h1 { font-size: 1.1rem; letter-spacing: 1px; }
+  .topbar a { color: #aaa; font-size: 0.85rem; text-decoration: none; }
+  .topbar a:hover { color: #fff; }
+  .card { background: #fff; border-radius: 10px; padding: 32px;
+           max-width: 600px; margin: 40px auto; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  h2 { font-size: 1.3rem; margin-bottom: 20px; color: #1a1a2e; }
+  label { display: block; font-size: 0.9rem; font-weight: 600;
+          color: #555; margin-bottom: 6px; margin-top: 16px; }
+  input[type=text], input[type=password], input[type=number], select {
+    width: 100%; padding: 10px 12px; border: 1px solid #ddd;
+    border-radius: 6px; font-size: 1rem; }
+  input:focus, select:focus { outline: none; border-color: #1a1a2e; }
+  .btn { display: inline-block; background: #1a1a2e; color: #fff;
+          padding: 12px 28px; border: none; border-radius: 6px;
+          font-size: 1rem; cursor: pointer; margin-top: 24px;
+          text-decoration: none; transition: background 0.2s; }
+  .btn:hover { background: #2d2d4e; }
+  .btn-secondary { background: #eee; color: #333; margin-left: 10px; }
+  .btn-secondary:hover { background: #ddd; }
+  .btn-danger { background: #c0392b; }
+  .btn-danger:hover { background: #a93226; }
+  .error { background: #fdecea; color: #c0392b; padding: 10px 14px;
+            border-radius: 6px; margin-bottom: 16px; font-size: 0.9rem; }
+  .hint { font-size: 0.82rem; color: #888; margin-top: 4px; }
+  .check-group label { font-weight: normal; display: flex; align-items: center; gap: 8px;
+                        margin-top: 10px; cursor: pointer; color: #333; }
+  .check-group input { width: auto; }
+  .radio-group label { font-weight: normal; display: flex; align-items: center; gap: 8px;
+                        margin-top: 10px; cursor: pointer; color: #333; }
+  .radio-group input { width: auto; }
+  .review-row { display: flex; gap: 8px; padding: 8px 0;
+                 border-bottom: 1px solid #f0f0f0; font-size: 0.95rem; }
+  .review-row .rk { color: #777; min-width: 160px; font-size: 0.85rem; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+  .sep { margin: 20px 0; border: none; border-top: 1px solid #eee; }
+  .location-block { margin-top: 20px; border: 1px solid #eee;
+                     border-radius: 8px; padding: 16px; }
+  .location-block h3 { font-size: 1rem; color: #1a1a2e; margin-bottom: 12px; }
+  .step-indicator { font-size: 0.8rem; color: #999; margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>JABE CONCIERGE</h1>
+  {% if session.get('user') %}
+  <span>{{ session.user }} &nbsp;|&nbsp; <a href="/logout">Log out</a></span>
+  {% endif %}
+</div>
+<div class="card">
+  {% block content %}{% endblock %}
+</div>
+</body>
+</html>

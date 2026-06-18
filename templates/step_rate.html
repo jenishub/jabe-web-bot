@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="step-indicator">Step 1 of 10</div>
+<h2>Exchange Rate</h2>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="POST">
+  <label>KZT per 1 USD</label>
+  <input type="text" name="rate" placeholder="e.g. 530" autofocus required>
+  <button class="btn" type="submit">Next →</button>
+</form>
+{% endblock %}

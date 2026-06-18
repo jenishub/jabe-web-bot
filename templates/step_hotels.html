@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="step-indicator">Step 6 of 10</div>
+<h2>Select Hotels</h2>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="POST">
+  {% for loc, hotels in hotels_by_loc.items() %}
+  <div class="location-block">
+    <h3>{{ loc }} — {{ nights_split[loc] }} night(s)</h3>
+    <div class="check-group">
+      {% for i, h in enumerate(hotels) %}
+      <label>
+        <input type="checkbox" name="hotel_{{ loc }}" value="{{ i }}">
+        {{ h.name }} ({{ h.payment }})
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+  <button class="btn" type="submit">Next →</button>
+</form>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="step-indicator">Step 7 of 10</div>
+<h2>Room Types</h2>
+<p class="hint" style="margin-bottom:16px">Select all room types to include in the proposal.</p>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="POST">
+  <div class="check-group">
+    {% for i, label in enumerate(room_labels) %}
+    <label>
+      <input type="checkbox" name="rooms" value="{{ i }}">
+      {{ label }}
+    </label>
+    {% endfor %}
+  </div>
+  <button class="btn" type="submit">Next →</button>
+</form>
+{% endblock %}

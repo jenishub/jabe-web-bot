@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="step-indicator">Step 5 of 10</div>
+<h2>Nights per Location</h2>
+<p class="hint" style="margin-bottom:16px">Total trip: <strong>{{ calc.nights }} nights</strong>. These must add up exactly.</p>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="POST">
+  <label>Almaty nights</label>
+  <input type="number" name="almaty" min="0" value="0" required>
+
+  <label>Shymbulak nights</label>
+  <input type="number" name="shymbulak" min="0" value="0" required>
+
+  <label>Kolsay nights</label>
+  <input type="number" name="kolsay" min="0" value="0" required>
+
+  <button class="btn" type="submit">Next →</button>
+</form>
+{% endblock %}

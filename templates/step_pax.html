@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="step-indicator">Step 2 of 10</div>
+<h2>Passengers</h2>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="POST">
+  <label>Number of adults</label>
+  <input type="number" name="adults" min="1" placeholder="e.g. 4" autofocus required>
+
+  <label>Children ages (if any)</label>
+  <input type="text" name="child_ages" placeholder="e.g. 7 10 13 — space or comma separated">
+  <p class="hint">Enter each child's age. Ages 1-4 are free, 5-10 are 50% off, 11-12 are 50% off tickets, 13+ count as adults.</p>
+
+  <button class="btn" type="submit">Next →</button>
+</form>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="step-indicator">Step 3 of 10</div>
+<h2>Travel Dates</h2>
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+<form method="POST">
+  <label>Travel dates (for the PDF)</label>
+  <input type="text" name="dates_text" placeholder="e.g. June 10 - June 15" autofocus required>
+  <p class="hint">This is printed on the proposal exactly as you type it.</p>
+
+  <label>Number of nights</label>
+  <input type="number" name="nights" min="1" placeholder="e.g. 5" required>
+
+  <button class="btn" type="submit">Next →</button>
+</form>
+{% endblock %}
