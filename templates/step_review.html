@@ -2,7 +2,7 @@
 {% block content %}
 <h2>📋 Review Before Generating</h2>
 
-<div class="review-row"><span class="rk">Exchange rate</span><span>{{ calc.exchange_rate }} KZT/USD</span></div>
+<div class="review-row"><span class="rk">Exchange rate</span><span>{{ calc.exchange_rate }} KZT/USD (fixed)</span></div>
 <div class="review-row">
   <span class="rk">Adults</span>
   <span>{{ calc.adult_count }}
@@ -21,17 +21,14 @@
 <div class="review-row"><span class="rk">Seats (5+ y.o.)</span><span>{{ calc.seat_count }}</span></div>
 <div class="review-row"><span class="rk">Dates</span><span>{{ calc.dates_text }} ({{ calc.nights }}n / {{ calc.days }}d)</span></div>
 
-{% if mode == "include" %}
-  {% for h in hotel_summary %}
-  <div class="review-row"><span class="rk">Hotel</span><span>{{ h }}</span></div>
-  {% endfor %}
-  <div class="review-row"><span class="rk">Room types</span><span>{{ rooms | join(", ") }}</span></div>
-  <div class="review-row"><span class="rk">Early check-in</span><span>{{ "Yes" if calc.early_checkin else "No" }}</span></div>
-{% elif mode == "high_season" %}
-  <div class="review-row"><span class="rk">Hotel</span><span>⚠️ September — confirm with sales@jabe.kz</span></div>
-{% else %}
-  <div class="review-row"><span class="rk">Hotel</span><span>Land only</span></div>
+{% if calc.is_september %}
+<div class="review-row"><span class="rk">High season</span><span>⚠️ September — hotel rates &amp; availability not guaranteed, must be checked. Reminder added to the proposal.</span></div>
 {% endif %}
+{% for h in hotel_summary %}
+<div class="review-row"><span class="rk">Hotel</span><span>{{ h }}</span></div>
+{% endfor %}
+<div class="review-row"><span class="rk">Room types</span><span>{{ rooms | join(", ") }}</span></div>
+<div class="review-row"><span class="rk">Early check-in</span><span>{{ "Yes" if calc.early_checkin else "No" }}</span></div>
 
 <div class="review-row"><span class="rk">Vehicle</span><span>{{ veh }}</span></div>
 {% for t in tours %}
@@ -50,7 +47,6 @@
 <form method="POST">
   <div class="actions">
     <button class="btn" name="action" value="generate">✅ Generate PDF</button>
-    <button class="btn btn-secondary" name="action" value="edit_rate">✏️ Change Rate</button>
     <button class="btn btn-secondary" name="action" value="edit_markup">✏️ Change Markup</button>
     <button class="btn btn-danger" name="action" value="restart">🔄 Start Over</button>
   </div>

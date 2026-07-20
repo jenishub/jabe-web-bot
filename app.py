@@ -15,7 +15,7 @@ from flask import (Flask, Response, redirect, render_template, request,
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer
 
 load_dotenv()
 
@@ -49,9 +49,10 @@ TICKETS = RATES["tickets"]
 MEALS = RATES["meals"]
 VEHICLES = RATES["vehicles"]
 TRANSPORT = RATES["transport"]
-SUV = RATES.get("suv", {"cost": 20000, "capacity": 5, "tour_keyword": "kaindy"})
+DEFAULT_ROE = RATES.get("roe", 470)
+SUV = RATES.get("suv", {"cost": 21000, "capacity": 5, "tour_keyword": "kaindy"})
 DRIVER_STAY = RATES.get("driver_stay", {"solo": 15000, "both": 30000})
-SHYMBULAK_CAB = RATES.get("shymbulak_cab", {"cost": 4000, "capacity": 4})
+SHYMBULAK_CAB = RATES.get("shymbulak_cab", {"cost": 4000, "capacity": 4, "hotel_keyword": "Shymbulak Ski Resort Hotel"})
 TOUR_LIST = list(TRANSPORT.keys())
 ARRIVAL_TOURS = [t for t in TOUR_LIST if t.lower().startswith("arrival")]
 DEPARTURE_TOURS = [t for t in TOUR_LIST if t.lower().startswith("departure")]
@@ -137,48 +138,45 @@ def calculate(data):
     cc = data["child_counts"]
     days = data["days"]
     rate = data["exchange_rate"]
-    vcol = VEHICLES[data["vehicle"]]["col"]
-    vehicle_has_guide = "guide" in VEHICLES[data["vehicle"]]["name"].lower()
-    mode = data.get("hotel_mode", "include")
+    vehicle = VEHICLES[data["vehicle"]]
     nights_split = data.get("nights_split", {})
     sel = data.get("sel", {})
     rooms_sel = data.get("rooms", [])
 
+    # ----- Hotel part (all hotels included as options, per location) -----
     hotel_results = []
-    if mode == "include":
-        for loc in LOCATIONS:
-            loc_nights = nights_split.get(loc, 0)
-            if loc == "Almaty" and data.get("early_checkin"):
-                loc_nights += 1
-            if loc_nights <= 0:
-                continue
-            loc_hotels = []
-            for hi in sel.get(loc, []):
-                h = HOTELS[loc][hi]
-                rooms = {}
-                for idx, (label, key, occ) in enumerate(
-                        [("Single", "single", 1), ("Double", "double", 2), ("Triple", "triple", 3)]):
-                    if idx not in rooms_sel:
-                        continue
-                    room_rate = h.get(key)
-                    if not room_rate:
-                        continue
-                    per_pax = room_rate / occ * loc_nights
-                    if h["payment"] == "Cash":
-                        per_pax *= 1.04
-                    rooms[label] = math.ceil(per_pax / rate)
-                if rooms:
-                    loc_hotels.append({"name": h["name"], "rooms": rooms, "payment": h["payment"]})
-            if loc_hotels:
-                hotel_results.append({"location": loc, "nights": loc_nights, "hotels": loc_hotels})
+    for loc in LOCATIONS:
+        loc_nights = nights_split.get(loc, 0)
+        if loc == "Almaty" and data.get("early_checkin"):
+            loc_nights += 1
+        if loc_nights <= 0:
+            continue
+        loc_hotels = []
+        for hi in sel.get(loc, []):
+            h = HOTELS[loc][hi]
+            rooms = {}
+            for idx, (label, key, occ) in enumerate(
+                    [("Single", "single", 1), ("Double", "double", 2), ("Triple", "triple", 3)]):
+                if idx not in rooms_sel:
+                    continue
+                room_rate = h.get(key)
+                if not room_rate:
+                    continue
+                # rates already include taxes — no 4% uplift
+                per_pax = room_rate / occ * loc_nights
+                rooms[label] = math.ceil(per_pax / rate)
+            if rooms:
+                loc_hotels.append({"name": h["name"], "rooms": rooms, "payment": h["payment"]})
+        if loc_hotels:
+            hotel_results.append({"location": loc, "nights": loc_nights, "hotels": loc_hotels})
 
-    transport_total = tickets_per_pax = extra_minivan_total = suv_total = suv_count = 0
+    # ----- Land part (vehicle-independent pieces) -----
+    tickets_per_pax = extra_minivan_total = suv_total = suv_count = 0
     ticket_lines = []
     seat_count = data["seat_count"]
     seats_needed = data.get("seats_needed", seat_count + 1)
 
     for tour in data["tours"]:
-        transport_total += TRANSPORT[tour][vcol]
         for tname, tprice in tickets_for_tour(tour):
             tickets_per_pax += tprice
             ticket_lines.append(f"{tname}: {fmt_kzt(tprice)} per pax")
@@ -189,19 +187,17 @@ def calculate(data):
             suv_count += n
             suv_total += n * SUV["cost"]
 
-    kolsay_nights = nights_split.get("Kolsay", 0) if mode == "include" else 0
-    stay_rate = DRIVER_STAY["both"] if vehicle_has_guide else DRIVER_STAY["solo"]
-    driver_stay_total = kolsay_nights * stay_rate
+    kolsay_nights = nights_split.get("Kolsay", 0)
 
+    # Shymbulak return cab (once per stay, passengers ÷ 4)
     shymbulak_cab_total = shymbulak_cab_count = 0
-    if mode == "include":
-        shymbulak_sel = any(
-            HOTELS["Shymbulak"][hi]["name"] == SHYMBULAK_CAB.get("hotel_keyword", "Shymbulak Ski Resort Hotel")
-            for hi in sel.get("Shymbulak", [])
-        )
-        if shymbulak_sel:
-            shymbulak_cab_count = math.ceil(seat_count / SHYMBULAK_CAB["capacity"])
-            shymbulak_cab_total = shymbulak_cab_count * SHYMBULAK_CAB["cost"]
+    shymbulak_sel = any(
+        HOTELS["Shymbulak"][hi]["name"] == SHYMBULAK_CAB.get("hotel_keyword", "Shymbulak Ski Resort Hotel")
+        for hi in sel.get("Shymbulak", [])
+    )
+    if shymbulak_sel:
+        shymbulak_cab_count = math.ceil(seat_count / SHYMBULAK_CAB["capacity"])
+        shymbulak_cab_total = shymbulak_cab_count * SHYMBULAK_CAB["cost"]
 
     lunches, dinners, galas = data["lunches"], data["dinners"], data["galas"]
     meals_per_pax = lunches * MEALS["lunch"] + dinners * MEALS["dinner"] + galas * MEALS["gala"]
@@ -222,14 +218,32 @@ def calculate(data):
 
     water_per_pax = MEALS["water_per_day"] * days
     markup = data["markup"]
-    shared_total = transport_total + extra_minivan_total + shared_flat + suv_total + driver_stay_total + shymbulak_cab_total
-    shared_per_adult = shared_total / adult_count if adult_count else 0
 
     def to_usd(kzt):
-        return kzt * 1.04 / rate
+        # rates already include taxes — no 4% uplift
+        return kzt / rate
 
-    adult_land_kzt = shared_per_adult + tickets_per_pax + meals_per_pax + alcohol_per_pax + water_per_pax
-    adult_final = math.ceil(to_usd(adult_land_kzt) + markup)
+    # ----- Per driver-variant totals (non-English & English rates given together) -----
+    variants = []
+    for var in vehicle["variants"]:
+        transport_total = sum(TRANSPORT[tour][var["col"]] for tour in data["tours"])
+        stay_rate = DRIVER_STAY["both"] if var.get("guide") else DRIVER_STAY["solo"]
+        driver_stay_total = kolsay_nights * stay_rate
+        shared_total = (transport_total + extra_minivan_total + shared_flat + suv_total
+                        + driver_stay_total + shymbulak_cab_total)
+        shared_per_adult = shared_total / adult_count if adult_count else 0
+        adult_land_kzt = shared_per_adult + tickets_per_pax + meals_per_pax + alcohol_per_pax + water_per_pax
+        variants.append({
+            "label": var["label"],
+            "transport_total": transport_total,
+            "driver_stay_total": driver_stay_total,
+            "shared_total": shared_total,
+            "shared_per_adult": shared_per_adult,
+            "adult_land_kzt": adult_land_kzt,
+            "adult_usd_before_markup": to_usd(adult_land_kzt),
+            "adult_final": math.ceil(to_usd(adult_land_kzt) + markup),
+        })
+
     c510_kzt = 0.5 * tickets_per_pax + 0.5 * meals_per_pax + water_per_pax
     c510_final = math.ceil(to_usd(c510_kzt) + markup)
     c1112_kzt = 0.5 * tickets_per_pax + meals_per_pax + water_per_pax
@@ -237,19 +251,17 @@ def calculate(data):
 
     return {
         "hotel_results": hotel_results,
-        "transport_total": transport_total,
+        "variants": variants,
         "extra_minivan_total": extra_minivan_total,
         "suv_total": suv_total, "suv_count": suv_count,
-        "driver_stay_total": driver_stay_total, "kolsay_nights": kolsay_nights,
+        "kolsay_nights": kolsay_nights,
         "shymbulak_cab_total": shymbulak_cab_total, "shymbulak_cab_count": shymbulak_cab_count,
-        "shared_flat": shared_flat, "shared_per_adult": shared_per_adult,
+        "shared_flat": shared_flat,
         "tickets_per_pax": tickets_per_pax, "ticket_lines": ticket_lines,
         "meals_per_pax": meals_per_pax, "alcohol_per_pax": alcohol_per_pax,
         "water_per_pax": water_per_pax, "markup": markup,
         "adult_count": adult_count, "child_counts": cc,
-        "adult_land_kzt": adult_land_kzt,
-        "adult_usd_before_markup": to_usd(adult_land_kzt),
-        "adult_final": adult_final, "c510_final": c510_final, "c1112_final": c1112_final,
+        "c510_final": c510_final, "c1112_final": c1112_final,
     }
 
 
@@ -274,31 +286,14 @@ def build_pdf(code, data, calc):
         + (f", {cc['free']} infant(s) free" if cc["free"] else ""), body))
     s.append(Spacer(1, 10))
 
-    mode = data.get("hotel_mode", "include")
-    if mode == "include":
-        s.append(Paragraph("A) Hotel Part Cost (nett rate)", h2))
-        for loc in calc["hotel_results"]:
-            s.append(Paragraph(f"<b>{loc['location']} — {loc['nights']} night(s)</b>", body))
-            for h in loc["hotels"]:
-                s.append(Paragraph(h["name"], body))
-                for label, usd in h["rooms"].items():
-                    s.append(Paragraph(f"&nbsp;&nbsp;&nbsp;{label}: {fmt_usd(usd)} per 1 pax", body))
-            s.append(Spacer(1, 6))
-        early = " (with early check-in)" if data.get("early_checkin") else " (without early check-in or late check-out)"
-        s.append(Paragraph("<b>Inclusions:</b>", body))
-        s.append(Paragraph(f"• Accommodation as listed{early}", body))
-        s.append(Paragraph("• Daily breakfast", body))
-    elif mode == "high_season":
-        s.append(Paragraph("A) Hotel Part Cost", h2))
-        s.append(Paragraph(
-            "September is peak high season. Please confirm actual rates and availability "
-            "with <b>sales@jabe.kz</b>.", body))
+    s.append(Paragraph("A) Land Part Cost", h2))
+    variants = calc["variants"]
+    if len(variants) == 1:
+        s.append(Paragraph(f"<b>Adult: {fmt_usd(variants[0]['adult_final'])} per 1 pax</b>", body))
     else:
-        s.append(Paragraph("A) Hotel Part Cost", h2))
-        s.append(Paragraph("Hotel not included — accommodation arranged directly by the guest.", body))
-
-    s.append(Paragraph("B) Land Part Cost", h2))
-    s.append(Paragraph(f"<b>Adult: {fmt_usd(calc['adult_final'])} per 1 pax</b>", body))
+        s.append(Paragraph("<b>Adult (per 1 pax):</b>", body))
+        for v in variants:
+            s.append(Paragraph(f"&nbsp;&nbsp;&nbsp;<b>{v['label']}: {fmt_usd(v['adult_final'])}</b>", body))
     if cc["half_both"]:
         s.append(Paragraph(f"<b>Child (5-10 y.o.): {fmt_usd(calc['c510_final'])} per 1 pax</b>", body))
     if cc["half_ticket"]:
@@ -309,8 +304,11 @@ def build_pdf(code, data, calc):
     s.append(Paragraph("<b>Inclusions:</b>", body))
     s.append(Paragraph("• All transfers PVT", body))
     veh = VEHICLES[data["vehicle"]]
-    s.append(Paragraph(
-        f"• {'English speaking driver or guide' if veh['english'] else 'Driver (non-English speaking)'} ({veh['name']})", body))
+    if len(veh["variants"]) > 1:
+        drv = " or ".join(v["label"] for v in veh["variants"])
+        s.append(Paragraph(f"• {veh['name']} — {drv} (rates shown above for both)", body))
+    else:
+        s.append(Paragraph(f"• {veh['name']}", body))
     for i, tour in enumerate(data["tours"], 1):
         s.append(Paragraph(f"• Day {i}: {tour}", body))
     if data["lunches"]:
@@ -342,6 +340,28 @@ def build_pdf(code, data, calc):
             "<i>Child pricing: 1-4 y.o. free; 5-10 y.o. 50% off tickets &amp; meals; "
             "11-12 y.o. 50% off tickets; 13 y.o. and above charged as adult.</i>", body))
 
+    # ----- Hotel options on a separate page -----
+    s.append(PageBreak())
+    s.append(Paragraph("B) Hotel Options (per 1 pax, taxes included)", h2))
+    if data.get("is_september"):
+        s.append(Paragraph(
+            "<b>⚠️ September is peak high season — the hotel rates below and availability are "
+            "not guaranteed and must be checked before confirmation.</b>", body))
+        s.append(Spacer(1, 6))
+    for loc in calc["hotel_results"]:
+        s.append(Paragraph(f"<b>{loc['location']} — {loc['nights']} night(s)</b>", body))
+        for h in loc["hotels"]:
+            s.append(Paragraph(h["name"], body))
+            for label, usd in h["rooms"].items():
+                s.append(Paragraph(f"&nbsp;&nbsp;&nbsp;{label}: {fmt_usd(usd)} per 1 pax", body))
+        s.append(Spacer(1, 6))
+    if not calc["hotel_results"]:
+        s.append(Paragraph("No hotel rates available for the selected room types.", body))
+    early = " (with early check-in)" if data.get("early_checkin") else " (without early check-in or late check-out)"
+    s.append(Paragraph("<b>Hotel inclusions:</b>", body))
+    s.append(Paragraph(f"• Accommodation as listed{early}", body))
+    s.append(Paragraph("• Daily breakfast", body))
+
     issue_date = datetime.now().strftime("%d %B %Y")
     s.append(Spacer(1, 12))
     roe = ParagraphStyle("ROE", parent=body, fontSize=9, textColor="#555555")
@@ -359,37 +379,67 @@ def send_hidden_email(code, data, calc, pdf_buf):
     lines = [
         f"Calculation {code}",
         f"Dates: {data['dates_text']} ({data['nights']} nights / {data['days']} days)",
-        f"Hotel mode: {data.get('hotel_mode','include')}",
-        f"Adults: {calc['adult_count']} | C5-10: {cc['half_both']} | C11-12: {cc['half_ticket']} | Infants: {cc['free']}",
-        f"Exchange rate: {data['exchange_rate']} KZT/USD",
+        f"Adults (incl. 13+): {calc['adult_count']} | Children 5-10: {cc['half_both']} | "
+        f"Children 11-12: {cc['half_ticket']} | Infants 1-4: {cc['free']}",
+        f"Seat count (5+ y.o.): {data['seat_count']}",
+        f"Exchange rate: {data['exchange_rate']} KZT/USD (fixed)",
         f"Vehicle: {VEHICLES[data['vehicle']]['name']}",
         "",
-        "=== COST BREAKDOWN (KZT, nett — 4% applied at totals) ===",
-        f"Transport total: {fmt_kzt(calc['transport_total'])}",
+        "=== COST BREAKDOWN BY PART (KZT, taxes included in rates) ===",
+        "",
+        "-- SHARED EXTRAS (whole group) --",
     ]
     if calc["extra_minivan_total"]:
-        lines.append(f"Extra minivan: {fmt_kzt(calc['extra_minivan_total'])}")
+        lines.append(f"Extra minivan (14+ seats): {fmt_kzt(calc['extra_minivan_total'])}")
     if calc.get("suv_total"):
         lines.append(f"SUV at Kaindy ({calc['suv_count']} x {fmt_kzt(SUV['cost'])}): {fmt_kzt(calc['suv_total'])}")
-    if calc.get("driver_stay_total"):
-        lines.append(f"Driver/guide Kolsay stay ({calc['kolsay_nights']}n): {fmt_kzt(calc['driver_stay_total'])}")
     if calc.get("shymbulak_cab_total"):
-        lines.append(f"Shymbulak cab ({calc['shymbulak_cab_count']} x {fmt_kzt(SHYMBULAK_CAB['cost'])}): {fmt_kzt(calc['shymbulak_cab_total'])}")
+        lines.append(f"Shymbulak return cab ({calc['shymbulak_cab_count']} x {fmt_kzt(SHYMBULAK_CAB['cost'])}): {fmt_kzt(calc['shymbulak_cab_total'])}")
     if calc["shared_flat"]:
-        lines.append(f"DJ/Dancers: {fmt_kzt(calc['shared_flat'])}")
+        lines.append(f"DJ / Dancers: {fmt_kzt(calc['shared_flat'])}")
+    lines.append("")
+    for v in calc["variants"]:
+        lines.append(f"-- TRANSPORT: {v['label']} --")
+        lines.append(f"Transport total: {fmt_kzt(v['transport_total'])}")
+        if v["driver_stay_total"]:
+            lines.append(f"Driver/guide Kolsay stay ({calc['kolsay_nights']} night(s)): {fmt_kzt(v['driver_stay_total'])}")
+        lines.append(f"Shared total: {fmt_kzt(v['shared_total'])}")
+        lines.append(f"Per adult (÷{calc['adult_count']}): {fmt_kzt(v['shared_per_adult'])}")
+        lines.append("")
     lines += [
-        f"Per adult (shared): {fmt_kzt(calc['shared_per_adult'])}",
-        f"Tickets per pax: {fmt_kzt(calc['tickets_per_pax'])}",
-        f"Meals per pax: {fmt_kzt(calc['meals_per_pax'])}",
+        "-- TICKETS (per pax, full) --",
+    ]
+    lines += ["  " + l for l in calc["ticket_lines"]] or ["  none"]
+    lines += [
+        f"Tickets total per pax: {fmt_kzt(calc['tickets_per_pax'])}",
+        "",
+        "-- MEALS (per pax, full) --",
+        f"Lunches: {data['lunches']} | Dinners: {data['dinners']} | Gala: {data['galas']}",
+        f"Meals total per pax: {fmt_kzt(calc['meals_per_pax'])}",
+        f"Alcohol per pax (adults only): {fmt_kzt(calc['alcohol_per_pax'])}",
         f"Water per pax: {fmt_kzt(calc['water_per_pax'])}",
         "",
-        "=== LAND TOTALS ===",
-        f"Nett subtotal (KZT): {fmt_kzt(calc['adult_land_kzt'])}",
-        f"+ 4% tax (KZT): {fmt_kzt(calc['adult_land_kzt'] * 1.04)}",
-        f"Before markup (USD): {calc['adult_usd_before_markup']:.2f}",
-        f"Markup: {calc['markup']:.2f} USD",
-        f"Adult FINAL: {calc['adult_final']} USD",
+        "-- HOTEL (USD per pax, taxes included, per location — all options) --",
     ]
+    for loc in calc["hotel_results"]:
+        lines.append(f"  {loc['location']} ({loc['nights']} night(s)):")
+        for h in loc["hotels"]:
+            rooms = ", ".join(f"{k}: {v}" for k, v in h["rooms"].items())
+            lines.append(f"    {h['name']} [{h['payment']}]: {rooms}")
+    if data.get("is_september"):
+        lines.append("  NOTE: September high season — hotel rates/availability not guaranteed, must be checked.")
+    lines += [
+        "",
+        "=== LAND TOTALS (per adult) ===",
+        f"MARKUP: {calc['markup']:.2f} USD per paying pax",
+    ]
+    for v in calc["variants"]:
+        lines += [
+            f"[{v['label']}]",
+            f"  Land subtotal (KZT, taxes included): {fmt_kzt(v['adult_land_kzt'])}",
+            f"  = before markup (USD, ÷{data['exchange_rate']}): {v['adult_usd_before_markup']:.2f} USD",
+            f"  Adult FINAL: {v['adult_final']} USD",
+        ]
     if cc["half_both"]:
         lines.append(f"Child 5-10 FINAL: {calc['c510_final']} USD")
     if cc["half_ticket"]:
@@ -419,7 +469,7 @@ def login():
         if USERS.get(u) == p:
             session["user"] = u
             session.permanent = False
-            return redirect(url_for("step_rate"))
+            return redirect(url_for("step_pax"))
         error = "Invalid username or password."
     return render_template("login.html", error=error)
 
@@ -428,20 +478,6 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("login"))
-
-
-@app.route("/calc/rate", methods=["GET", "POST"])
-@login_required
-def step_rate():
-    error = None
-    if request.method == "POST":
-        try:
-            rate = float(request.form["rate"].replace(",", "."))
-            session["calc"] = {"exchange_rate": rate}
-            return redirect(url_for("step_pax"))
-        except (ValueError, KeyError):
-            error = "Please enter a valid number, e.g. 530"
-    return render_template("step_rate.html", error=error)
 
 
 @app.route("/calc/pax", methods=["GET", "POST"])
@@ -465,20 +501,19 @@ def step_pax():
             adult_count = adults + counts["adult"]
             children_5plus = counts["half_both"] + counts["half_ticket"] + counts["adult"]
             seat_count = adults + children_5plus
-            calc = session.get("calc", {})
-            calc.update({
+            session["calc"] = {
+                "exchange_rate": DEFAULT_ROE,
                 "adults_entered": adults,
                 "child_ages": ages,
                 "child_counts": counts,
                 "adult_count": adult_count,
                 "seat_count": seat_count,
                 "seats_needed": seat_count + 1,
-            })
-            session["calc"] = calc
+            }
             return redirect(url_for("step_dates"))
         except ValueError as e:
             error = str(e) if "age" in str(e).lower() else "Please enter valid numbers."
-    return render_template("step_pax.html", error=error)
+    return render_template("step_pax.html", error=error, roe=DEFAULT_ROE)
 
 
 @app.route("/calc/dates", methods=["GET", "POST"])
@@ -496,34 +531,10 @@ def step_dates():
             calc.update({"nights": nights, "days": nights + 1,
                          "dates_text": dates_text, "is_september": is_sep})
             session["calc"] = calc
-            if is_sep:
-                calc["hotel_mode"] = "high_season"
-                session["calc"] = calc
-                return redirect(url_for("step_vehicle"))
-            return redirect(url_for("step_hotel_mode"))
+            return redirect(url_for("step_nights_split"))
         except (ValueError, KeyError):
             error = "Please enter a valid number of nights."
     return render_template("step_dates.html", error=error)
-
-
-@app.route("/calc/hotel-mode", methods=["GET", "POST"])
-@login_required
-def step_hotel_mode():
-    if request.method == "POST":
-        mode = request.form.get("mode")
-        calc = session.get("calc", {})
-        calc["hotel_mode"] = mode
-        session["calc"] = calc
-        if mode == "include":
-            return redirect(url_for("step_nights_split"))
-        else:
-            calc["sel"] = {}
-            calc["nights_split"] = {}
-            calc["rooms"] = []
-            calc["early_checkin"] = False
-            session["calc"] = calc
-            return redirect(url_for("step_vehicle"))
-    return render_template("step_hotel_mode.html")
 
 
 @app.route("/calc/nights-split", methods=["GET", "POST"])
@@ -542,36 +553,14 @@ def step_nights_split():
                 error = f"These add up to {a+sh+k} nights but the trip is {calc['nights']} nights. Please re-enter."
             else:
                 calc["nights_split"] = {"Almaty": a, "Shymbulak": sh, "Kolsay": k}
-                calc["acc_locs"] = [loc for loc in LOCATIONS if calc["nights_split"][loc] > 0]
-                calc["sel"] = {}
+                # all hotels of each visited location are included as options
+                calc["sel"] = {loc: list(range(len(HOTELS[loc])))
+                               for loc in LOCATIONS if calc["nights_split"][loc] > 0}
                 session["calc"] = calc
-                return redirect(url_for("step_hotels"))
+                return redirect(url_for("step_rooms"))
         except ValueError:
             error = error or "Please enter valid numbers."
     return render_template("step_nights_split.html", calc=calc, error=error)
-
-
-@app.route("/calc/hotels", methods=["GET", "POST"])
-@login_required
-def step_hotels():
-    calc = session.get("calc", {})
-    error = None
-    if request.method == "POST":
-        sel = {}
-        for loc in calc.get("acc_locs", []):
-            chosen = request.form.getlist(f"hotel_{loc}")
-            if not chosen:
-                error = f"Please select at least one hotel in {loc}."
-                break
-            sel[loc] = [int(i) for i in chosen]
-        if not error:
-            calc["sel"] = sel
-            session["calc"] = calc
-            return redirect(url_for("step_rooms"))
-    hotels_by_loc = {loc: HOTELS[loc] for loc in calc.get("acc_locs", [])}
-    nights_split = calc.get("nights_split", {})
-    return render_template("step_hotels.html", hotels_by_loc=hotels_by_loc,
-                           nights_split=nights_split, error=error)
 
 
 @app.route("/calc/rooms", methods=["GET", "POST"])
@@ -698,32 +687,30 @@ def step_review():
     calc = session.get("calc", {})
     if request.method == "POST":
         action = request.form.get("action")
-        if action == "edit_rate":
-            return redirect(url_for("step_rate"))
         if action == "edit_markup":
             return redirect(url_for("step_markup"))
         if action == "restart":
             session.pop("calc", None)
-            return redirect(url_for("step_rate"))
+            return redirect(url_for("step_pax"))
         if action == "generate":
             return redirect(url_for("generate"))
     # Build review summary
     cc = calc.get("child_counts", {})
     paying = cc.get("half_both", 0) + cc.get("half_ticket", 0)
-    mode = calc.get("hotel_mode", "include")
     hotel_summary = []
-    if mode == "include":
-        for loc in LOCATIONS:
-            nights = calc.get("nights_split", {}).get(loc, 0)
-            if nights > 0:
-                names = ", ".join(HOTELS[loc][i]["name"] for i in calc.get("sel", {}).get(loc, []))
-                hotel_summary.append(f"{loc} ({nights}n): {names}")
+    for loc in LOCATIONS:
+        nights = calc.get("nights_split", {}).get(loc, 0)
+        if nights > 0:
+            n_opts = len(calc.get("sel", {}).get(loc, []))
+            hotel_summary.append(f"{loc} ({nights}n): all {n_opts} hotel option(s)")
     rooms = [ROOM_LABELS[i] for i in calc.get("rooms", [])]
-    veh = VEHICLES[calc["vehicle"]]["name"] if "vehicle" in calc else "—"
+    veh = "—"
+    if "vehicle" in calc:
+        v = VEHICLES[calc["vehicle"]]
+        veh = v["name"] + (" (non-English & English driver rates)" if len(v["variants"]) > 1 else "")
     tours = [f"Day {i+1}: {t}" for i, t in enumerate(calc.get("tours", []))]
     return render_template("step_review.html", calc=calc, cc=cc, paying=paying,
-                           mode=mode, hotel_summary=hotel_summary,
-                           rooms=rooms, veh=veh, tours=tours)
+                           hotel_summary=hotel_summary, rooms=rooms, veh=veh, tours=tours)
 
 
 @app.route("/calc/generate")
@@ -731,19 +718,21 @@ def step_review():
 def generate():
     calc = session.get("calc", {})
     if not calc or "markup" not in calc:
-        return redirect(url_for("step_rate"))
+        return redirect(url_for("step_pax"))
 
     code = next_code()
     result = calculate(calc)
     pdf_buf = build_pdf(code, calc, result)
 
+    adult_final = (result["variants"][0]["adult_final"] if len(result["variants"]) == 1
+                   else " / ".join(str(v["adult_final"]) for v in result["variants"]))
     try:
         save_quote({
             "code": code, "user": session.get("user", ""),
             "created": datetime.now().strftime("%Y-%m-%d %H:%M"),
             "dates_text": calc.get("dates_text", ""),
             "adult_count": calc.get("adult_count", 0),
-            "adult_final": result["adult_final"],
+            "adult_final": adult_final,
             "markup": calc.get("markup", 0),
         })
     except Exception as e:

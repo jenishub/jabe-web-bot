@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="step-indicator">Step 2 of 10</div>
+<div class="step-indicator">Step 1 of 9</div>
 <h2>Passengers</h2>
+<p class="hint" style="margin-bottom:16px">Exchange rate is fixed at <strong>{{ roe }} KZT/USD</strong>.</p>
 {% if error %}<div class="error">{{ error }}</div>{% endif %}
 <form method="POST">
   <label>Number of adults</label>

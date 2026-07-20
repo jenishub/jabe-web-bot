@@ -1,15 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="step-indicator">Step 8 of 10</div>
+<div class="step-indicator">Step 6 of 9</div>
 <h2>Vehicle</h2>
-<p class="hint" style="margin-bottom:16px">Showing vehicles that fit <strong>{{ seat_count }} passenger(s)</strong>.</p>
+<p class="hint" style="margin-bottom:16px">Showing vehicles that fit <strong>{{ seat_count }} passenger(s)</strong>.
+Sedan and Mini Van quotes include both the non-English and English speaking driver rates.</p>
 {% if error %}<div class="error">{{ error }}</div>{% endif %}
 <form method="POST">
   <div class="radio-group">
     {% for i, v in vehicles %}
     <label>
       <input type="radio" name="vehicle" value="{{ i }}" required>
-      {{ v.name }} ({{ v.capacity }})
+      {{ v.name }} ({{ v.capacity }}){% if v.variants | length > 1 %} — both driver rates{% endif %}
     </label>
     {% endfor %}
   </div>

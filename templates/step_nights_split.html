@@ -1,8 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="step-indicator">Step 5 of 10</div>
+<div class="step-indicator">Step 3 of 9</div>
 <h2>Nights per Location</h2>
-<p class="hint" style="margin-bottom:16px">Total trip: <strong>{{ calc.nights }} nights</strong>. These must add up exactly.</p>
+{% if calc.is_september %}
+<div class="error">⚠️ September is peak high season — hotel rates &amp; availability are not
+guaranteed and must be checked before confirmation. A reminder will be added to the proposal.</div>
+{% endif %}
+<p class="hint" style="margin-bottom:16px">Total trip: <strong>{{ calc.nights }} nights</strong>. These must add up exactly.
+All hotel options for each visited location will be included on a separate page of the proposal.</p>
 {% if error %}<div class="error">{{ error }}</div>{% endif %}
 <form method="POST">
   <label>Almaty nights</label>
